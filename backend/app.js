@@ -3,6 +3,7 @@ import cors from "cors"
 import authRoutes from "./routes/authRoutes.js"
 import { errorHandler } from "./middleware/errorMiddleware.js"
 import listingRoutes from "./routes/listingRoutes.js";
+import favoriteRoutes from "./routes/favoriteRoutes.js";
 
 const app = express()
 
@@ -14,5 +15,7 @@ app.use("/api/auth",authRoutes)
 app.use(errorHandler);
 
 app.use("/api/listings",listingRoutes)
+
+app.use("/api/favorites", favoriteRoutes);
 
 export default app;

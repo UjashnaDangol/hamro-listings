@@ -84,6 +84,9 @@ export const getListing = async (req,res) => {
       }
     }
 
+ 
+    
+
     const limit = 8;
 
     const listings = await Listing.find(query)
