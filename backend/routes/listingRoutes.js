@@ -2,7 +2,7 @@ import express from "express";
 
 import {
   createListing,
-  getListing,
+  getListings,
   getListingById,
   updateListing,
   deleteListing,
@@ -17,15 +17,15 @@ import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router()
 
-router.get("/",getListing);
+router.get("/",getListings);
 router.get("/:id",getListingById);
 
-router.post("/",protect,authorizeRoles("landlord"),upload.array("images",6),createListing)
+router.post("/",protect,authorizeRoles("owner"),upload.array("images",6),createListing)
 
 router.put(
   "/:id",
   protect,
-  authorizeRoles("landlord"),
+  authorizeRoles("owner"),
   upload.array("images", 6),
   updateListing
 );
@@ -33,7 +33,7 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("landlord"),
+  authorizeRoles("owner"),
   deleteListing
 );
 

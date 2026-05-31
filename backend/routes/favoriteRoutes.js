@@ -17,21 +17,19 @@ const router =
 router.post(
   "/:id",
   protect,
-  authorizeRoles("buyer"),
   addFavorite
 );
 
 router.get(
   "/",
   protect,
-  authorizeRoles("buyer"),
+
   getFavorites
 );
 
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("buyer"),
   removeFavorite
 );
 

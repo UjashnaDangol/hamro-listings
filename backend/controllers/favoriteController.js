@@ -1,124 +1,99 @@
 import Favorite from "../models/favoriteModel.js";
 import Listing from "../models/listingModel.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import mongoose from "mongoose";
 
-// ADD FAVORITE
-export const addFavorite = async (
-  req,
-  res
-) => {
-  try {
-    const listing =
-      await Listing.findById(
-        req.params.id
-      );
+export const addFavorite = asyncHandler(async (req, res) => {
+  const listingId = req.params.id;
 
-    if (!listing) {
-      return res.status(404).json({
-        message: "Listing not found",
-      });
-    }
+  if (!mongoose.Types.ObjectId.isValid(listingId)) {
+    return res.status(400).json({ message: "Invalid listing ID" });
+  }
 
-    const exists =
-      await Favorite.findOne({
-        user: req.user._id,
-        listing: req.params.id,
-      });
+  const listing = await Listing.findById(listingId);
 
-    if (exists) {
-      return res.status(400).json({
-        message:
-          "Already added to favorites",
-      });
-    }
+  if (!listing) {
+    return res.status(404).json({ message: "Listing not found" });
+  }
 
-    await Favorite.create({
-      user: req.user._id,
-      listing: req.params.id,
-    });
+  const exists = await Favorite.findOne({
+    user: req.user._id,
+    listing: listingId,
+  });
 
-    listing.favoritesCount += 1;
-
-    await listing.save();
-
-    return res.status(201).json({
-      success: true,
-      message:
-        "Added to favorites",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: error.message,
+  if (exists) {
+    return res.status(400).json({
+      message: "Already added to favorites",
     });
   }
-};
 
-// GET FAVORITES
-export const getFavorites =
-  async (req, res) => {
-    try {
-      const favorites =
-        await Favorite.find({
-          user: req.user._id,
-        }).populate({
-          path: "listing",
-          populate: {
-            path: "owner",
-            select: "name email",
-          },
-        });
+  await Favorite.create({
+    user: req.user._id,
+    listing: listingId,
+  });
 
-      return res.json({
-        success: true,
-        data: favorites,
-      });
-    } catch (error) {
-      return res.status(500).json({
-        message: error.message,
-      });
-    }
-  };
+ 
+  await Listing.findByIdAndUpdate(listingId, {
+    $inc: { favoritesCount: 1 },
+  });
 
-// REMOVE FAVORITE
-export const removeFavorite =
-  async (req, res) => {
-    try {
-      const favorite =
-        await Favorite.findOne({
-          user: req.user._id,
-          listing: req.params.id,
-        });
+  res.status(201).json({
+    success: true,
+    message: "Added to favorites",
+  });
+});
 
-      if (!favorite) {
-        return res.status(404).json({
-          message:
-            "Favorite not found",
-        });
-      }
 
-      await favorite.deleteOne();
+export const getFavorites = asyncHandler(async (req, res) => {
+  const favorites = await Favorite.find({ user: req.user._id })
+    .populate({
+      path: "listing",
+      select: "title price media location favoritesCount views",
+      populate: {
+        path: "owner",
+        select: "name email",
+      },
+    })
+    .sort("-createdAt");
 
-      const listing =
-        await Listing.findById(
-          req.params.id
-        );
+  res.json({
+    success: true,
+    count: favorites.length,
+    data: favorites,
+  });
+});
 
-      if (
-        listing &&
-        listing.favoritesCount > 0
-      ) {
-        listing.favoritesCount -= 1;
+export const removeFavorite = asyncHandler(async (req, res) => {
+  const listingId = req.params.id;
 
-        await listing.save();
-      }
+  const favorite = await Favorite.findOne({
+    user: req.user._id,
+    listing: listingId,
+  });
 
-      return res.json({
-        success: true,
-        message:
-          "Removed from favorites",
-      });
-    } catch (error) {
-      return res.status(500).json({
-        message: error.message,
-      });
-    }
-  };
+  if (!favorite) {
+    return res.status(404).json({
+      message: "Favorite not found",
+    });
+  }
+
+  await favorite.deleteOne();
+
+ 
+  await Listing.findByIdAndUpdate(listingId, {
+    $inc: { favoritesCount: -1 },
+  });
+
+
+  await Listing.updateOne(
+    { _id: listingId, favoritesCount: { $lt: 0 } },
+    { $set: { favoritesCount: 0 } }
+  );
+
+  res.json({
+    success: true,
+    message: "Removed from favorites",
+  });
+});
+
+

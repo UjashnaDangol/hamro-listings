@@ -1,227 +1,102 @@
-import Listing from "../models/listingModel.js"
+import Listing from "../models/listingModel.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import QueryFeatures from "../utils/queryFeatures.js";
+
+//CREATE LISTING
+
+export const createListing = asyncHandler(async (req, res) => {
+  const imageUrls = req.files?.map((file) => file.path); 
 
 
-//create listing
-export const createListing = async (req,res) =>{
+  const listing = await Listing.create({
+    ...req.body,
+    owner: req.user._id,
+    media: {
+      images: imageUrls || [],
+    },
+  });
+
+  res.status(201).json(listing);
+});
 
 
-    try {
+//GET ALL LISTINGS (FILTER + PAGINATION)
+export const getListings = asyncHandler(async (req, res) => {
+  const features = new QueryFeatures(Listing.find(), req.query)
+    .filter()
+    .sort()
+    .paginate();
 
-          const { 
-      title,
-      description,
-      city,
-      address,
-      price,
-      bedrooms,
-      bathrooms,}
-    = req.body;
+  const listings = await features.query;
 
-    const imageUrls = req.files?.map((file) => file.path) || []
-
-    const listing = await Listing.create({
-        title,
-      description,
-      city,
-      address,
-      price,
-      bedrooms,
-      bathrooms,
-      images: imageUrls,
-      owner: req.user._id,
-    })
-if (!listing) {
-      return res.status(400).json({
-        success: false,
-        message: "Failed to create listing",
-      });
-    }
-
-   return res.status(201).json({
-      success: true,
-      data: listing,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-//get listing
-
-export const getListing = async (req,res) => {
-
-  try {
-
-    const { city,
-      minPrice,
-      maxPrice,
-      page = 1,
-      keyword = "",} = req.query
-
-      const query = {}
-
-      if(city){
-        query.city = city
-      }
-
-      if(keyword){
-        query.title ={
-          $regex : keyword , 
-          $options : "i"
-        }}
-
-      if (minPrice || maxPrice) {
-      query.price = {};
-
-      if (minPrice) {
-        query.price.$gte = Number(minPrice);
-      }
-
-      if (maxPrice) {
-        query.price.$lte = Number(maxPrice);
-      }
-    }
-
- 
-    
-
-    const limit = 8;
-
-    const listings = await Listing.find(query)
-    .populate("owner","name email")
-    .sort({createdAt : -1})
-    .skip((page - 1) * limit)
-    .limit(limit);
-
-const total =
-  await Listing.countDocuments(query);
-  
-    res.json({
-      success : true ,
-      total,
-      page : Number(page),
-      data : listings
-    })
-      }
-    
-  catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-}
-
-// get single listing
-
-export const getListingById = async (req,res) =>{
-
-  try {
-    const listing = await Listing.findById(req.params.id)
-                  .populate("owner" , "name email")
-  
+  res.json(listings);
+});
 
 
- if (!listing){
-  return res.status(404).json({message:"Listing not found",})
- }
+//SINGLE LISTING
 
-     listing.views = (listing.views || 0) + 1;
+export const getListingById = asyncHandler(async (req, res) => {
+  const listing = await Listing.findById(req.params.id);
 
-    await listing.save();
-
-
- return res.json({
-  success : true ,
-  data : listing
- })
-    
-  } catch (error) {
-  return  res.status(500).json({
-      message: error.message,
-    });
-  }
- 
-}
-
-//update listing
-export const updateListing = async (
-  req,
-  res
-) => {
-  try {
-    const listing =
-      await Listing.findById(
-        req.params.id
-      );
-
-    if (!listing) {
-      return res.status(404).json({
-        message: "Not found",
-      });
-    }
-
-    if (
-      listing.owner.toString() !==
-      req.user._id.toString()
-    ) {
-      return res.status(403).json({
-        message: "Access denied",
-      });
-    }
-
-  Object.assign(listing , req.body)
-
-  if(req.files?.length){
-    listing.images = req.files.map((file) => file.path)
+  if (!listing) {
+    return res.status(404).json({ message: "Listing not found" });
   }
 
-    await listing.save();
+  listing.views += 1;
+  await listing.save();
 
-    res.json({
-      success: true,
-      data: listing,
-    });
-  } catch (error) {
-   return  res.status(500).json({
-      message: error.message,
-    });
+  res.json(listing);
+});
+
+
+// UPDATE LISTING
+
+export const updateListing = asyncHandler(async (req, res) => {
+  const listing = await Listing.findById(req.params.id);
+
+  if (!listing) {
+    return res.status(404).json({ message: "Listing not found" });
   }
-};
 
-
-//delete listing
-export const deleteListing = async (
-  req,
-  res
-) => {
-  try {
-    const listing =
-      await Listing.findById(
-        req.params.id
-      );
-
-    if (!listing) {
-      return res.status(404).json({
-        message: "Not found",
-      });
-    }
-
-      if (listing.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        message: "Access denied",
-      });
-    }
-
-    await listing.deleteOne();
-
-    return res.json({
-      message: "Listing deleted",
-    });
-  } catch (error) {
-   return res.status(500).json({
-      message: error.message,
-    });
+  if (
+    listing.owner.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
+    return res.status(403).json({ message: "Not allowed" });
   }
-};
+
+
+  if (req.files?.length > 0) {
+    const newImages = req.files.map((file) => file.path);
+    listing.media.images.push(...newImages);
+  }
+
+  Object.assign(listing, req.body);
+
+  await listing.save();
+
+  res.json(listing);
+});
+
+
+
+// DELETE LISTING
+
+export const deleteListing = asyncHandler(async (req, res) => {
+  const listing = await Listing.findById(req.params.id);
+
+  if (!listing) {
+    return res.status(404).json({ message: "Not found" });
+  }
+
+  if (
+    listing.owner.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
+    return res.status(403).json({ message: "Not allowed" });
+  }
+
+  await listing.deleteOne();
+
+  res.json({ message: "Listing deleted successfully" });
+});
