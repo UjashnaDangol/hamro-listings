@@ -6,6 +6,8 @@ import {
   getListingById,
   updateListing,
   deleteListing,
+  getFeaturedListings,
+  getTrendingListings
 } from "../controllers/listingController.js";
 
 import {
@@ -16,6 +18,10 @@ import {
 import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router()
+
+router.get("/trending", getTrendingListings);
+
+router.get("/featured", getFeaturedListings);
 
 router.get("/",getListings);
 router.get("/:id",getListingById);
@@ -36,5 +42,7 @@ router.delete(
   authorizeRoles("owner"),
   deleteListing
 );
+
+
 
 export default router;

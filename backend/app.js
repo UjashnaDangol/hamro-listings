@@ -23,6 +23,8 @@ app.use("/api/favorites", favoriteRoutes);
 
 app.use("/api/visits", visitRoutes);
 
+
+
 app.use(errorHandler);
 
 export default app;

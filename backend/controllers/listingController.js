@@ -1,9 +1,10 @@
 import Listing from "../models/listingModel.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import QueryFeatures from "../utils/queryFeatures.js";
+import { calculateTrendingScore } from "../utils/updateTrending.js";
 
 //CREATE LISTING
-
+console.log("🔥 LOADING LISTING CONTROLLER VERSION 1");
 export const createListing = asyncHandler(async (req, res) => {
   const imageUrls = req.files?.map((file) => file.path); 
 
@@ -21,15 +22,46 @@ export const createListing = asyncHandler(async (req, res) => {
 
 
 //GET ALL LISTINGS (FILTER + PAGINATION)
-export const getListings = asyncHandler(async (req, res) => {
-  const features = new QueryFeatures(Listing.find(), req.query)
-    .filter()
-    .sort()
-    .paginate();
+export const getListings = asyncHandler(async(req,res) => {
 
-  const listings = await features.query;
+  const features = new QueryFeatures(Listing.find(),req.query)
+  .search()
+  .filter()
+  .sort()
+  .paginate()
 
-  res.json(listings);
+  let listings = await features.query;
+  
+  listings = listings.map((item)=>{
+    const obj = item.toObject()
+    obj.trendingScore = calculateTrendingScore(obj)
+    return obj
+  })
+  res.json({
+    success : true ,
+    count : listings.length ,
+    data : listings,
+  })
+
+})
+
+//trending
+export const getTrendingListings = asyncHandler(async (req, res) => {
+  const listings = await Listing.find();
+
+  const sorted = listings
+    .map((item) => {
+      const obj = item.toObject();
+      obj.trendingScore = calculateTrendingScore(obj);
+      return obj;
+    })
+    .sort((a, b) => b.trendingScore - a.trendingScore)
+    .slice(0, 10);
+
+  res.json({
+    success: true,
+    data: sorted,
+  });
 });
 
 
@@ -99,4 +131,16 @@ export const deleteListing = asyncHandler(async (req, res) => {
   await listing.deleteOne();
 
   res.json({ message: "Listing deleted successfully" });
+});
+
+
+// featured
+
+export const getFeaturedListings = asyncHandler(async (req, res) => {
+  const listings = await Listing.find({ featured: true }).limit(10);
+
+  res.json({
+    success: true,
+    data: listings,
+  });
 });
