@@ -5,6 +5,7 @@ import { errorHandler } from "./middleware/errorMiddleware.js"
 import listingRoutes from "./routes/listingRoutes.js";
 import favoriteRoutes from "./routes/favoriteRoutes.js";
 import visitRoutes from "./routes/visitRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
 
 
 
@@ -23,6 +24,7 @@ app.use("/api/favorites", favoriteRoutes);
 
 app.use("/api/visits", visitRoutes);
 
+app.use("/api/messages", messageRoutes);
 
 
 app.use(errorHandler);

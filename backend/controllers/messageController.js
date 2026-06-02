@@ -1,0 +1,205 @@
+import mongoose from "mongoose";
+import Conversation from "../models/conversationModel.js";
+import Message from "../models/messageModel.js";
+import Listing from "../models/listingModel.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+
+// start conversation
+export const startConversation = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({ message: "User not authenticated" });
+  }
+
+  const listing = await Listing.findById(req.params.id);
+
+  if (!listing) {
+    return res.status(404).json({ message: "Listing not found" });
+  }
+
+  const receiver = listing.contactPerson || listing.owner;
+
+  if (!receiver) {
+    return res.status(400).json({
+      message: "Listing has no valid owner/contact person",
+    });
+  }
+
+  const receiverId = receiver._id ? receiver._id : receiver;
+
+  if (!mongoose.Types.ObjectId.isValid(receiverId)) {
+    return res.status(400).json({
+      message: "Invalid receiver id",
+    });
+  }
+
+  if (receiverId.toString() === req.user._id.toString()) {
+    return res.status(400).json({
+      message: "Cannot start conversation with yourself",
+    });
+  }
+
+  let conversation = await Conversation.findOne({
+    listing: listing._id,
+    buyer: req.user._id,
+    receiver: receiverId,
+  });
+
+  if (!conversation) {
+    conversation = await Conversation.create({
+      listing: listing._id,
+      buyer: req.user._id,
+      receiver: receiverId,
+    });
+  }
+
+  res.json({
+    success: true,
+    data: conversation,
+  });
+});
+
+// send message
+export const sendMessage = asyncHandler(async (req, res) => {
+  // check auth
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({
+      message: "User not authenticated",
+    });
+  }
+
+  const { conversationId, text } = req.body;
+
+  // debug request body
+  console.log("conversationId:", conversationId);
+  console.log("text:", text);
+
+  // validate mongo id
+  if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+    return res.status(400).json({
+      message: "Invalid conversation id",
+    });
+  }
+
+  // find conversation
+  const conversation =
+    await Conversation.findById(
+      conversationId
+    );
+
+  // debug DB result
+  console.log(
+    "conversation found:",
+    conversation
+  );
+
+  if (!conversation) {
+    return res.status(404).json({
+      message:
+        "Conversation not found",
+    });
+  }
+
+  // debug fields
+  console.log(
+    "buyer:",
+    conversation.buyer
+  );
+
+  console.log(
+    "receiver:",
+    conversation.receiver
+  );
+
+  // validate fields
+  if (
+    !conversation.buyer ||
+    !conversation.receiver
+  ) {
+    return res.status(400).json({
+      message:
+        "Conversation is corrupted",
+    });
+  }
+
+  // determine receiver
+  const receiverId =
+    req.user._id.toString() ===
+    conversation.buyer.toString()
+      ? conversation.receiver
+      : conversation.buyer;
+
+  // create message
+  const message =
+    await Message.create({
+      conversation:
+        conversation._id,
+      listing:
+        conversation.listing,
+      sender:
+        req.user._id,
+      receiver:
+        receiverId,
+      text,
+      delivered: true,
+    });
+
+  // update metadata
+  conversation.lastMessage =
+    text;
+
+  conversation.lastSender =
+    req.user._id;
+
+  conversation.unreadCount =
+    (conversation.unreadCount || 0) + 1;
+
+  await conversation.save();
+
+  res.status(201).json({
+    success: true,
+    data: message,
+  });
+});
+
+// get chat history
+export const getMessages = asyncHandler(async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(400).json({
+      message: "Invalid conversation id",
+    });
+  }
+
+  const messages = await Message.find({
+    conversation: req.params.id,
+  })
+    .populate("sender", "name avatar")
+    .sort("createdAt");
+
+  res.json({
+    success: true,
+    data: messages,
+  });
+});
+
+// get my conversations
+export const getMyConversations = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user._id) {
+    return res.status(401).json({ message: "User not authenticated" });
+  }
+
+  const conversations = await Conversation.find({
+    $or: [
+      { buyer: req.user._id },
+      { receiver: req.user._id },
+    ],
+  })
+    .populate("listing", "title price media")
+    .populate("buyer", "name avatar")
+    .populate("receiver", "name avatar")
+    .sort("-updatedAt");
+
+  res.json({
+    success: true,
+    data: conversations,
+  });
+});
