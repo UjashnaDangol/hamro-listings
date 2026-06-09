@@ -4,7 +4,7 @@ import QueryFeatures from "../utils/queryFeatures.js";
 import { calculateTrendingScore } from "../utils/updateTrending.js";
 
 //CREATE LISTING
-console.log("🔥 LOADING LISTING CONTROLLER VERSION 1");
+
 export const createListing = asyncHandler(async (req, res) => {
   const imageUrls = req.files?.map((file) => file.path); 
 

@@ -1,9 +1,11 @@
 import express from "express";
-
 import {
   createVisit,
-  getVisits,
+  getMyVisits,
+  getReceivedVisits,
   updateVisitStatus,
+  rescheduleVisit,
+  cancelVisit
 } from "../controllers/visitController.js";
 
 import {
@@ -13,7 +15,15 @@ import {
 
 const router = express.Router();
 
-// buyer requests visit
+router.post("/:id", createVisit);
+router.get("/my", getMyVisits);
+router.get("/received", getReceivedVisits);
+router.put("/:id/status", updateVisitStatus);
+router.put("/:id/reschedule", rescheduleVisit);
+router.put("/:id/cancel", cancelVisit);
+
+export default router;
+
 router.post(
   "/:id",
   protect,
@@ -21,19 +31,36 @@ router.post(
   createVisit
 );
 
-// both buyer & landlord view visits
 router.get(
-  "/",
+  "/my",
   protect,
-  getVisits
+  authorizeRoles("buyer"),
+  getMyVisits
 );
 
-// landlord updates status
-router.put(
-  "/:id",
+router.get(
+  "/received",
   protect,
-  authorizeRoles("landlord"),
+  authorizeRoles("owner", "agent"),
+  getReceivedVisits
+);
+
+router.patch(
+  "/:id/status",
+  protect,
+  authorizeRoles("owner", "agent"),
   updateVisitStatus
 );
 
-export default router;
+router.patch(
+  "/:id/reschedule",
+  protect,
+  authorizeRoles("buyer"),
+  rescheduleVisit
+);
+
+router.patch(
+  "/:id/cancel",
+  protect,
+  cancelVisit
+);

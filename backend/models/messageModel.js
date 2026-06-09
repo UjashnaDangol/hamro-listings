@@ -33,7 +33,20 @@ const messageSchema =
         trim: true,
       },
 
-      delivered: {
+     
+
+      attachmentUrl: {
+  type: String,
+},
+
+attachmentType: {
+  type: String,
+},
+
+attachmentName: {
+  type: String,
+},
+ delivered: {
         type: Boolean,
         default: false,
       },

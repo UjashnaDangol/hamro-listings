@@ -35,7 +35,7 @@ const visitSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+       enum: ["pending", "approved", "rejected", "cancelled", "completed"],
       default: "pending",
     },
   },

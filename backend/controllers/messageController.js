@@ -4,6 +4,21 @@ import Message from "../models/messageModel.js";
 import Listing from "../models/listingModel.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+
+const messageTemplates = {
+  availability:
+    "Hello, is this property still available?",
+
+  visit:
+    "Hello, I am interested in this property. Can I schedule a visit?",
+
+  negotiable:
+    "Hello, is the listed price negotiable?",
+
+  documents:
+    "Hello, are ownership documents available for verification?",
+};
+
 // start conversation
 export const startConversation = asyncHandler(async (req, res) => {
   if (!req.user || !req.user._id) {
@@ -58,6 +73,81 @@ export const startConversation = asyncHandler(async (req, res) => {
   });
 });
 
+//start conversation with template message
+export const startConversationWithTemplate =
+  asyncHandler(async (req, res) => {
+    const listing = await Listing.findById(req.params.id);
+
+    if (!listing) {
+      return res.status(404).json({
+        message: "Listing not found",
+      });
+    }
+
+    const receiver =
+      listing.contactPerson || listing.owner;
+
+    const receiverId =
+      receiver._id || receiver;
+
+    const template =
+      messageTemplates[req.body.template];
+
+    if (!template) {
+      return res.status(400).json({
+        message: "Invalid template",
+      });
+    }
+
+    let conversation =
+      await Conversation.findOne({
+        listing: listing._id,
+        buyer: req.user._id,
+        receiver: receiverId,
+      });
+
+    if (!conversation) {
+      conversation =
+        await Conversation.create({
+          listing: listing._id,
+          buyer: req.user._id,
+          receiver: receiverId,
+        });
+    }
+
+    const message =
+      await Message.create({
+        conversation:
+          conversation._id,
+        listing:
+          conversation.listing,
+        sender:
+          req.user._id,
+        receiver:
+          receiverId,
+        text: template,
+        delivered: true,
+      });
+
+    conversation.lastMessage =
+      template;
+
+    conversation.lastSender =
+      req.user._id;
+
+    conversation.receiverUnreadCount =
+      (conversation.receiverUnreadCount || 0) +
+      1;
+
+    await conversation.save();
+
+    res.status(201).json({
+      success: true,
+      conversation,
+      message,
+    });
+  });
+
 // send message
 export const sendMessage = asyncHandler(async (req, res) => {
   // check auth
@@ -68,6 +158,32 @@ export const sendMessage = asyncHandler(async (req, res) => {
   }
 
   const { conversationId, text } = req.body;
+let attachmentUrl = null;
+let attachmentType = null;
+let attachmentName = null;
+
+if (req.file) {
+
+  attachmentUrl = req.file.path;
+
+  attachmentName =
+    req.file.originalname;
+
+  if (
+    req.file.mimetype.startsWith(
+      "image/"
+    )
+  ) {
+    attachmentType = "image";
+  } else if (
+    req.file.mimetype ===
+    "application/pdf"
+  ) {
+    attachmentType = "pdf";
+  } else {
+    attachmentType = "file";
+  }
+}
 
   // debug request body
   console.log("conversationId:", conversationId);
@@ -121,6 +237,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
     });
   }
 
+  
   // determine receiver
   const receiverId =
     req.user._id.toString() ===
@@ -129,6 +246,17 @@ export const sendMessage = asyncHandler(async (req, res) => {
       : conversation.buyer;
 
   // create message
+
+  if (
+  !text &&
+  !attachmentUrl
+) {
+  return res.status(400).json({
+    message:
+      "Message or attachment required",
+  });
+}
+
   const message =
     await Message.create({
       conversation:
@@ -139,7 +267,12 @@ export const sendMessage = asyncHandler(async (req, res) => {
         req.user._id,
       receiver:
         receiverId,
-      text,
+      text,attachmentUrl,
+
+    attachmentType,
+
+    attachmentName,
+
       delivered: true,
     });
 
@@ -150,8 +283,14 @@ export const sendMessage = asyncHandler(async (req, res) => {
   conversation.lastSender =
     req.user._id;
 
-  conversation.unreadCount =
-    (conversation.unreadCount || 0) + 1;
+if (
+  receiverId.toString() ===
+  conversation.receiver.toString()
+) {
+  conversation.receiverUnreadCount += 1;
+} else {
+  conversation.buyerUnreadCount += 1;
+}
 
   await conversation.save();
 
@@ -203,3 +342,36 @@ export const getMyConversations = asyncHandler(async (req, res) => {
     data: conversations,
   });
 });
+
+// mark as read
+export const markAsRead = asyncHandler(
+  async (req, res) => {
+    const conversationId =
+      req.params.id;
+
+    await Message.updateMany(
+      {
+        conversation: conversationId,
+        receiver: req.user._id,
+        read: false,
+      },
+      {
+        read: true,
+      }
+    );
+
+  const conversation = await Conversation.findById(conversationId);
+
+if (conversation.receiver.toString() === req.user._id.toString()) {
+  conversation.receiverUnreadCount = 0;
+} else {
+  conversation.buyerUnreadCount = 0;
+}
+
+await conversation.save();
+    res.json({
+      success: true,
+      message: "Messages marked as read",
+    });
+  }
+);

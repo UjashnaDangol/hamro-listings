@@ -18,6 +18,13 @@ const listingSchema = new mongoose.Schema(
       required: true,
     },
 
+
+    trendingScore: {
+  type: Number,
+  default: 0,
+},
+
+
     subCategory: { type: String },
 
     price: { type: Number, required: true },
@@ -108,5 +115,7 @@ const listingSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+
 
 export default mongoose.model("Listing", listingSchema);
