@@ -3,7 +3,8 @@ import Conversation from "../models/conversationModel.js";
 import Message from "../models/messageModel.js";
 import Listing from "../models/listingModel.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-
+import { io, onlineUsers } from "../server.js";
+import User from "../models/userModel.js";
 
 const messageTemplates = {
   availability:
@@ -24,8 +25,7 @@ export const startConversation = asyncHandler(async (req, res) => {
   if (!req.user || !req.user._id) {
     return res.status(401).json({ message: "User not authenticated" });
   }
-
-  const listing = await Listing.findById(req.params.id);
+const listing = await Listing.findById(req.params.listingId);
 
   if (!listing) {
     return res.status(404).json({ message: "Listing not found" });
@@ -302,14 +302,50 @@ if (
 
 // get chat history
 export const getMessages = asyncHandler(async (req, res) => {
-  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+  const rawConversationId = req.params.conversationId;
+  const conversationId =
+    typeof rawConversationId === "string"
+      ? rawConversationId.trim()
+      : rawConversationId;
+
+  console.log("getMessages rawConversationId:", rawConversationId);
+  console.log("getMessages normalizedConversationId:", conversationId);
+  console.log(
+    "getMessages validObjectId:",
+    mongoose.isValidObjectId(conversationId)
+  );
+
+  if (!mongoose.isValidObjectId(conversationId)) {
     return res.status(400).json({
       message: "Invalid conversation id",
     });
   }
 
+  const conversation =
+    await Conversation.findById(
+      conversationId
+    );
+
+  if (!conversation) {
+    return res.status(404).json({
+      message: "Conversation not found",
+    });
+  }
+
+  // Authorization check
+  if (
+    conversation.buyer.toString() !==
+      req.user._id.toString() &&
+    conversation.receiver.toString() !==
+      req.user._id.toString()
+  ) {
+    return res.status(403).json({
+      message: "Not authorized",
+    });
+  }
+
   const messages = await Message.find({
-    conversation: req.params.id,
+    conversation: conversationId,
   })
     .populate("sender", "name avatar")
     .sort("createdAt");
@@ -344,34 +380,76 @@ export const getMyConversations = asyncHandler(async (req, res) => {
 });
 
 // mark as read
-export const markAsRead = asyncHandler(
-  async (req, res) => {
-    const conversationId =
-      req.params.id;
-
-    await Message.updateMany(
-      {
-        conversation: conversationId,
-        receiver: req.user._id,
-        read: false,
-      },
-      {
-        read: true,
-      }
-    );
+export const markAsRead = asyncHandler(async (req, res) => {
+  const conversationId = req.params.conversationId;
 
   const conversation = await Conversation.findById(conversationId);
 
-if (conversation.receiver.toString() === req.user._id.toString()) {
-  conversation.receiverUnreadCount = 0;
-} else {
-  conversation.buyerUnreadCount = 0;
-}
-
-await conversation.save();
-    res.json({
-      success: true,
-      message: "Messages marked as read",
-    });
+  if (!conversation) {
+    return res.status(404).json({ message: "Conversation not found" });
   }
-);
+
+  await Message.updateMany(
+    {
+      conversation: conversationId,
+      receiver: req.user._id,
+      read: false,
+    },
+    {
+      read: true,
+    }
+  );
+
+  if (conversation.receiver.toString() === req.user._id.toString()) {
+    conversation.receiverUnreadCount = 0;
+  } else {
+    conversation.buyerUnreadCount = 0;
+  }
+
+  await conversation.save();
+
+  const senderId = conversation.lastSender?.toString();
+  const senderSocketId = senderId ? onlineUsers.get(senderId) : null;
+
+  if (senderSocketId) {
+    io.to(senderSocketId).emit("messageSeen", { conversationId });
+  }
+
+  res.json({
+    success: true,
+    message: "Messages marked as read",
+  });
+});
+
+export const getUserStatus =
+  asyncHandler(
+    async (req, res) => {
+
+      const user =
+        await User.findById(
+          req.params.id
+        );
+
+      if (!user) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "User not found",
+          });
+      }
+
+      const isOnline =
+        onlineUsers.has(
+          user._id.toString()
+        );
+
+      const lastSeen =
+        user.lastSeen ?? null;
+
+      res.json({
+        online: isOnline,
+        lastSeen,
+      });
+    }
+  );

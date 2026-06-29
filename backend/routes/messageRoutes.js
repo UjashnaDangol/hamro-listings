@@ -8,6 +8,7 @@ import {
   getMyConversations,
   markAsRead,
   startConversationWithTemplate,
+  getUserStatus,
   
 } from "../controllers/messageController.js";
 
@@ -59,4 +60,9 @@ router.get(
   getMessages
 );
 
+router.get(
+  "/status/:id",
+  protect,
+  getUserStatus
+);
 export default router;

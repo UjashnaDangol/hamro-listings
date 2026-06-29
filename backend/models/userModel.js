@@ -35,6 +35,12 @@ const userSchema = new mongoose.Schema(
 
     avatar: String,
 
+    lastSeen: {
+  type: Date,
+  default: null,
+},
+
+
     status: {
       type: String,
       enum: [

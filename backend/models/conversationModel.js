@@ -39,6 +39,16 @@ const conversationSchema =
         type: Number,
         default: 0,
       },
+
+    buyerUnreadCount: {
+      type: Number,
+      default: 0,
+    },
+
+    receiverUnreadCount: {
+      type: Number,
+      default: 0,
+    },
     },
     { timestamps: true }
   );

@@ -6,7 +6,7 @@ const storage = new CloudinaryStorage({
     cloudinary,
     params:{
         folder : "hamro-listings",
-        allowed_formats : ["jpg","png","jpeg"],
+         resource_type: "auto",
     }
 })
 

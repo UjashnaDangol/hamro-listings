@@ -15,14 +15,8 @@ import {
 
 const router = express.Router();
 
-router.post("/:id", createVisit);
-router.get("/my", getMyVisits);
-router.get("/received", getReceivedVisits);
-router.put("/:id/status", updateVisitStatus);
-router.put("/:id/reschedule", rescheduleVisit);
-router.put("/:id/cancel", cancelVisit);
 
-export default router;
+
 
 router.post(
   "/:id",
@@ -64,3 +58,6 @@ router.patch(
   protect,
   cancelVisit
 );
+
+
+export default router;
