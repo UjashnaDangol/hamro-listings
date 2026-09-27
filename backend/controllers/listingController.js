@@ -71,7 +71,7 @@ export const getListingById = asyncHandler(async (req, res) => {
   const listing = await Listing.findById(req.params.id)
   .populate("owner","name email")
   .populate("contactPerson","name email");
-  
+
   if (!listing) {
     return res.status(404).json({ message: "Listing not found" });
   }
@@ -86,7 +86,9 @@ export const getListingById = asyncHandler(async (req, res) => {
 // UPDATE LISTING
 
 export const updateListing = asyncHandler(async (req, res) => {
-  const listing = await Listing.findById(req.params.id);
+  const listing = await Listing.findById(req.params.id)
+  .populate("owner","name email")
+  .populate("contactPerson","name email");
 
   if (!listing) {
     return res.status(404).json({ message: "Listing not found" });
