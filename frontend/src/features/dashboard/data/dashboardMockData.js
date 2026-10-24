@@ -1,0 +1,26 @@
+export const recommendedProperties = [
+  {
+    id: "property-1",
+    title: "Modern Family House",
+    price: 18500000,
+    listingType: "sale",
+    popular: true,
+    location: "Bhaisepati, Lalitpur",
+    bedrooms: 4,
+    bathrooms: 3,
+    area: 2400,
+    image: "/images/properties/house-1.jpg",
+  },
+  {
+    id: "property-2",
+    title: "Contemporary Apartment",
+    price: 9500000,
+    listingType: "rent",
+    popular: false,
+    location: "Baneshwor, Kathmandu",
+    bedrooms: 2,
+    bathrooms: 2,
+    area: 1100,
+    image: "/images/properties/apartment-1.jpg",
+  },
+];
