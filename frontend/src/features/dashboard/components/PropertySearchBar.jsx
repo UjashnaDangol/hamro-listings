@@ -1,12 +1,23 @@
 
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search , MapPin} from "lucide-react";
+
+import FilterField from "./property-filter/FilterField";
+import LocationPanel from "./property-filter/LocationPanel";
+import { set } from "react-hook-form";
 
 const listingTypes = ["Buy", "Rent"];
 
 export default function PropertySearchBar() {
   const [listingType, setListingType] = useState("Buy");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Controls whether the location panel is visible.
+  const [isLocationOpen, setIsLocationOpen] = useState(false);
+
+  // Stores the locations that have been applied.
+  const [selectedLocations, setSelectedLocations] = useState([]);
+
 
   function handleSearch(event) {
     event.preventDefault();
@@ -46,6 +57,32 @@ export default function PropertySearchBar() {
         ))}
       </div>
 
+      {/*Location filter*/ }
+<div className="relative z-50 mb-3">
+  <FilterField
+    label="Location"
+    value={
+      selectedLocations.length === 0
+        ? "Any location"
+        : selectedLocations.length === 1
+          ? selectedLocations[0]
+          : `${selectedLocations.length} locations selected`
+    }
+    active={isLocationOpen}
+    onClick={() => setIsLocationOpen((current) => !current)}
+    icon={<MapPin size={17} />}
+  />
+
+  {isLocationOpen && (
+    <div className="absolute left-0 top-full z-50 mt-2 w-full max-w-sm">
+      <LocationPanel
+        selected={selectedLocations}
+        onApply={setSelectedLocations}
+        onClose={() => setIsLocationOpen(false)}
+      />
+    </div>
+  )}
+</div>
       {/* Keyword search */}
       <form
         onSubmit={handleSearch}

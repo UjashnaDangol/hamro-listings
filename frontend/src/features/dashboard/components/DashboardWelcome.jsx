@@ -3,16 +3,7 @@ import PropertySearchBar from "./PropertySearchBar";
 
 export default function DashboardWelcome() {
   return (
-    <section
-      className="
-        relative isolate
-        min-h-[440px] sm:min-h-[400px] lg:min-h-[385px]
-        overflow-hidden
-        rounded-lg
-        border border-[#e1defe]
-        bg-[#f7f7ff]
-      "
-    >
+   <section className="relative isolate z-20 min-h-[440px] sm:min-h-[400px] lg:min-h-[385px] rounded-lg border border-[#e1defe] bg-[#f7f7ff]">
       {/* Background property image */}
       <img
         src="/images/dashboard/hero-house.svg"

@@ -15,7 +15,6 @@ export default function DashboardLayout() {
         }
       />
 
-      {/* Main page area */}
       <div
         className={`
           min-h-screen min-w-0
@@ -24,7 +23,7 @@ export default function DashboardLayout() {
           ${collapsed ? "md:ml-[72px]" : "md:ml-60"}
         `}
       >
-        <main className="min-w-0 px-4 pb-5 pt-20 sm:px-5 md:p-8">
+        <main className="w-full min-w-0 px-4 pb-5 pt-20 sm:px-5 md:p-8">
           <Outlet />
         </main>
       </div>
